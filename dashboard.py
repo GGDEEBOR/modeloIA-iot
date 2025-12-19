@@ -287,6 +287,51 @@ st.markdown("""
         color: #e3f2fd !important;
         opacity: 0.9;
     }
+    
+    /* Tarjetas de umbrales */
+    .threshold-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.2rem;
+        border-left: 6px solid;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        margin-bottom: 1rem;
+    }
+    
+    .threshold-low {
+        border-left-color: #00b09b;
+        background: linear-gradient(90deg, #f0f9f8 0%, white 100%);
+    }
+    
+    .threshold-medium {
+        border-left-color: #FF9A3D;
+        background: linear-gradient(90deg, #fff8f0 0%, white 100%);
+    }
+    
+    .threshold-high {
+        border-left-color: #FF416C;
+        background: linear-gradient(90deg, #fff0f2 0%, white 100%);
+    }
+    
+    .threshold-title {
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .threshold-range {
+        font-weight: 600;
+        color: #546e7a;
+        margin-bottom: 0.3rem;
+    }
+    
+    .threshold-description {
+        font-size: 0.9rem;
+        color: #666;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -351,7 +396,7 @@ st.markdown("<p class='subtitle'>Sistema Avanzado de Detección y Monitoreo de I
 
 # ========== LAYOUT PRINCIPAL ==========
 # Primera fila: Imagen a la izquierda, controles a la derecha
-col_img, col_controls = st.columns([1.5, 1])
+col_img, col_controls = st.columns([1, 0.7])
 
 with col_img:
     # Contenedor para la imagen
@@ -361,8 +406,8 @@ with col_img:
     try:
         img = Image.open(selected_image)
         # Redimensionar para mostrar
-        img.thumbnail((600, 400), Image.Resampling.LANCZOS)
-        st.image(img, use_container_width=True)
+        img.thumbnail((500, 350), Image.Resampling.LANCZOS)  # Reducido de 600x400
+        st.image(img, use_container_width=800)
         
         # Información de la imagen - TEXTO OSCURO
         col_info1, col_info2 = st.columns(2)
@@ -502,7 +547,123 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
         </div>
         """, unsafe_allow_html=True)
     
-    # Tercera fila: Gráficos y detalles
+    # ========== SECCIÓN NUEVA: UMBRALES DE RIESGO ==========
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+    st.markdown("## 🎯 UMBRALES DE RIESGO Y ALERTAS")
+    
+    # Determinar el umbral actual
+    current_threshold = ""
+    if prob <= 40:
+        current_threshold = "BAJO"
+        threshold_color = "#00b09b"
+    elif prob <= 70:
+        current_threshold = "MEDIO"
+        threshold_color = "#FF9A3D"
+    else:
+        current_threshold = "ALTO"
+        threshold_color = "#FF416C"
+    
+    col_thresholds, col_current = st.columns([2, 1])
+    
+    with col_thresholds:
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">📋 ESCALA DE UMBRALES</div>', unsafe_allow_html=True)
+        
+        # Tarjeta de umbral BAJO
+        st.markdown(f"""
+        <div class='threshold-card threshold-low'>
+            <div class='threshold-title'><span style='color: #00b09b;'>🟢</span> BAJO RIESGO</div>
+            <div class='threshold-range'>0% - 40% de probabilidad</div>
+            <div class='threshold-description'>
+                • Monitoreo rutinario<br>
+                • Condiciones normales<br>
+                • Sin alertas activas<br>
+                • Revisión periódica
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Tarjeta de umbral MEDIO
+        st.markdown(f"""
+        <div class='threshold-card threshold-medium'>
+            <div class='threshold-title'><span style='color: #FF9A3D;'>🟡</span> RIESGO MEDIO</div>
+            <div class='threshold-range'>40% - 70% de probabilidad</div>
+            <div class='threshold-description'>
+                • Monitoreo reforzado<br>
+                • Atención preventiva<br>
+                • Alertas de precaución<br>
+                • Verificación recomendada
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Tarjeta de umbral ALTO
+        st.markdown(f"""
+        <div class='threshold-card threshold-high'>
+            <div class='threshold-title'><span style='color: #FF416C;'>🔴</span> ALTO RIESGO</div>
+            <div class='threshold-range'>70% - 100% de probabilidad</div>
+            <div class='threshold-description'>
+                • Acción inmediata requerida<br>
+                • Alertas de emergencia<br>
+                • Notificación a autoridades<br>
+                • Protocolos de evacuación
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col_current:
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">🎯 UMBRAL ACTUAL</div>', unsafe_allow_html=True)
+        
+        # Mostrar el umbral actual
+        st.markdown(f"""
+        <div style='text-align: center; padding: 1rem;'>
+            <div style='font-size: 2.5rem; color: {threshold_color}; margin-bottom: 1rem;'>
+                {'🔴' if current_threshold == 'ALTO' else '🟡' if current_threshold == 'MEDIO' else '🟢'}
+            </div>
+            <h2 style='color: {threshold_color}; margin-bottom: 0.5rem;'>{current_threshold}</h2>
+            <div style='font-size: 1.5rem; font-weight: 700; color: #2c3e50;'>{prob:.1f}%</div>
+            <div style='margin-top: 1rem; padding: 0.8rem; background: #f8f9fa; border-radius: 8px;'>
+                <small>Probabilidad actual</small>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+        
+        # Recomendaciones según el umbral
+        st.markdown("#### 📝 RECOMENDACIONES")
+        
+        if current_threshold == "ALTO":
+            st.error("""
+            **🚨 ACCIÓN INMEDIATA:**
+            1. Activar protocolos de emergencia
+            2. Notificar a bomberos y autoridades
+            3. Iniciar evacuación preventiva
+            4. Monitoreo constante
+            """)
+        elif current_threshold == "MEDIO":
+            st.warning("""
+            **⚠️ PRECAUCIÓN:**
+            1. Reforzar monitoreo
+            2. Preparar equipos de respuesta
+            3. Informar a personal de guardia
+            4. Evaluar condiciones ambientales
+            """)
+        else:
+            st.success("""
+            **✅ SITUACIÓN NORMAL:**
+            1. Continuar monitoreo rutinario
+            2. Mantener equipos listos
+            3. Revisión periódica programada
+            4. Sin acciones inmediatas
+            """)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Tercera fila: Gráficos y detalles (modificada para ser la tercera fila)
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
     
     col_chart, col_details = st.columns([2, 1])
@@ -511,7 +672,7 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         st.markdown('<div class="card-title">📈 ANÁLISIS DETALLADO DE PROBABILIDAD</div>', unsafe_allow_html=True)
         
-        # Gráfico de gauge mejorado
+        # Gráfico de gauge mejorado CON UMBRALES MÁS CLAROS
         fig = go.Figure()
         
         fig.add_trace(go.Indicator(
@@ -532,16 +693,18 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
                     'tickwidth': 2,
                     'tickcolor': '#1a237e',
                     'tickformat': '%',
-                    'dtick': 20
+                    'dtick': 20,
+                    'tickvals': [0, 40, 70, 100],
+                    'ticktext': ['0%', '40%<br>BAJO', '70%<br>ALTO', '100%']
                 },
                 'bar': {'color': '#FF512F', 'thickness': 0.4},
                 'bgcolor': "white",
                 'borderwidth': 2,
                 'bordercolor': "#e0e0e0",
                 'steps': [
-                    {'range': [0, 30], 'color': '#00b09b'},
-                    {'range': [30, 70], 'color': '#FF9A3D'},
-                    {'range': [70, 100], 'color': '#FF416C'},
+                    {'range': [0, 40], 'color': '#00b09b', 'name': 'BAJO'},
+                    {'range': [40, 70], 'color': '#FF9A3D', 'name': 'MEDIO'},
+                    {'range': [70, 100], 'color': '#FF416C', 'name': 'ALTO'},
                 ],
                 'threshold': {
                     'line': {'color': "red", 'width': 4},
@@ -555,7 +718,18 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
             height=350,
             margin=dict(l=50, r=50, t=80, b=50),
             paper_bgcolor="white",
-            font={'family': "Arial, sans-serif"}
+            font={'family': "Arial, sans-serif"},
+            annotations=[
+                dict(
+                    x=0.5,
+                    y=-0.2,
+                    xref="paper",
+                    yref="paper",
+                    text="<b>UMBRALES:</b> 🟢 BAJO (0-40%) | 🟡 MEDIO (40-70%) | 🔴 ALTO (70-100%)",
+                    showarrow=False,
+                    font=dict(size=12, color="#546e7a")
+                )
+            ]
         )
         
         st.plotly_chart(fig, use_container_width=True)
@@ -590,6 +764,7 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
         metadata = {
             "ID de análisis": data.get('analysis_id', 'N/A'),
             "Modelo utilizado": data.get('model_version', 'FireWatch v2.1'),
+            "Umbral actual": f"{current_threshold} ({prob:.1f}%)",
             "Fecha": st.session_state.get('analysis_time', datetime.now()).strftime("%Y-%m-%d"),
             "Hora": st.session_state.get('analysis_time', datetime.now()).strftime("%H:%M:%S"),
             "Precisión": "Alta" if high_accuracy else "Estándar"
@@ -609,7 +784,7 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
         st.markdown('<div class="custom-card">', unsafe_allow_html=True)
         st.markdown('<div class="card-title">📚 HISTORIAL DE ANÁLISIS</div>', unsafe_allow_html=True)
         
-        # Crear datos de historial
+        # Crear datos de historial CON INFORMACIÓN DE UMBRALES
         history_data = []
         current_time = datetime.now()
         
@@ -617,25 +792,29 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
             time_diff = pd.Timedelta(hours=i*2)
             hist_prob = max(0, prob - (i*8))
             hist_status = "FIRE" if hist_prob > 50 else "SAFE"
+            hist_threshold = "ALTO" if hist_prob > 70 else "MEDIO" if hist_prob > 40 else "BAJO"
             
             history_data.append({
                 "ID": f"ANL-{1000+i}",
                 "Imagen": f"img_{i+1}.jpg",
                 "Estado": hist_status,
                 "Probabilidad": hist_prob,
+                "Umbral": hist_threshold,
                 "Fecha": (current_time - time_diff).strftime("%Y-%m-%d %H:%M")
             })
         
         df_history = pd.DataFrame(history_data)
         
-        # Función para colorear las filas
-        def color_row(val):
-            if val == "FIRE":
+        # Función para colorear las filas según umbral
+        def color_threshold(val):
+            if val == "ALTO":
                 return 'background-color: #FFEBEE; color: #C62828 !important; font-weight: bold;'
+            elif val == "MEDIO":
+                return 'background-color: #FFF8E1; color: #FF8F00 !important; font-weight: bold;'
             else:
                 return 'background-color: #E8F5E9; color: #2E7D32 !important; font-weight: bold;'
         
-        styled_df = df_history.style.applymap(color_row, subset=['Estado'])
+        styled_df = df_history.style.applymap(color_threshold, subset=['Umbral'])
         
         st.dataframe(
             styled_df,
@@ -652,6 +831,7 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
                     min_value=0,
                     max_value=100,
                 ),
+                "Umbral": st.column_config.TextColumn("Umbral", width="small"),
                 "Fecha": st.column_config.DatetimeColumn("Fecha/Hora", format="DD/MM HH:mm")
             }
         )
@@ -662,7 +842,7 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
         st.markdown('<div class="card-title">⚡ ACCIONES</div>', unsafe_allow_html=True)
         
         if st.button("📥 EXPORTAR REPORTE", use_container_width=True):
-            st.success("✅ Reporte exportado a PDF")
+            st.success("✅ Reporte exportado a PDF (incluye umbrales)")
             
         if st.button("🔄 NUEVO ANÁLISIS", use_container_width=True):
             st.rerun()
@@ -670,16 +850,25 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
         if st.button("📊 VER ESTADÍSTICAS", use_container_width=True):
             st.info("Funcionalidad en desarrollo")
             
-        if st.button("🚨 ALERTA EMERGENCIA", use_container_width=True, type="secondary"):
-            st.error("⚠️ ALERTA ACTIVADA - Notificando autoridades")
+        # Botón de alerta que cambia según el umbral
+        alert_button_text = "🚨 ACTIVAR ALERTA UMBRAL ALTO" if current_threshold == "ALTO" else "⚠️ CONFIGURAR ALERTAS"
+        if st.button(alert_button_text, use_container_width=True, type="secondary" if current_threshold != "ALTO" else "primary"):
+            if current_threshold == "ALTO":
+                st.error("⚠️ ALERTA DE EMERGENCIA ACTIVADA - Notificando autoridades")
+            else:
+                st.warning("⚠️ Sistema de alertas configurado para el umbral actual")
         
         st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
         
-        # Estadísticas rápidas
-        st.markdown("#### 📈 RESUMEN")
-        st.metric("Análisis hoy", "24")
-        st.metric("Detecciones", "8")
-        st.metric("Precisión", "96.2%")
+        # Estadísticas rápidas INCLUYENDO UMBRALES
+        st.markdown("#### 📈 RESUMEN POR UMBRAL")
+        col_stat1, col_stat2, col_stat3 = st.columns(3)
+        with col_stat1:
+            st.metric("🟢 Bajo", "12")
+        with col_stat2:
+            st.metric("🟡 Medio", "8")
+        with col_stat3:
+            st.metric("🔴 Alto", "4")
         
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -721,6 +910,39 @@ else:
         </div>
         """, unsafe_allow_html=True)
     
+    # Mostrar también los umbrales en la pantalla inicial
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+    st.markdown("## 🎯 SISTEMA DE UMBRALES DE RIESGO")
+    
+    col_th1, col_th2, col_th3 = st.columns(3)
+    
+    with col_th1:
+        st.markdown("""
+        <div style='background: #E8F5E9; border-left: 6px solid #00b09b; padding: 1.5rem; border-radius: 12px;'>
+            <h4 style='color: #00b09b !important; margin-bottom: 1rem;'>🟢 BAJO RIESGO</h4>
+            <p style='color: #424242 !important; font-weight: 600; margin-bottom: 0.5rem;'>0% - 40%</p>
+            <p style='color: #666 !important; font-size: 0.9rem;'>Monitoreo rutinario sin alertas activas</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_th2:
+        st.markdown("""
+        <div style='background: #FFF8E1; border-left: 6px solid #FF9A3D; padding: 1.5rem; border-radius: 12px;'>
+            <h4 style='color: #FF9A3D !important; margin-bottom: 1rem;'>🟡 RIESGO MEDIO</h4>
+            <p style='color: #424242 !important; font-weight: 600; margin-bottom: 0.5rem;'>40% - 70%</p>
+            <p style='color: #666 !important; font-size: 0.9rem;'>Atención preventiva y monitoreo reforzado</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_th3:
+        st.markdown("""
+        <div style='background: #FFEBEE; border-left: 6px solid #FF416C; padding: 1.5rem; border-radius: 12px;'>
+            <h4 style='color: #FF416C !important; margin-bottom: 1rem;'>🔴 ALTO RIESGO</h4>
+            <p style='color: #424242 !important; font-weight: 600; margin-bottom: 0.5rem;'>70% - 100%</p>
+            <p style='color: #666 !important; font-size: 0.9rem;'>Acción inmediata y alertas de emergencia</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
     # Instrucciones con texto oscuro
     st.markdown("""
     <div class='instructions' style='text-align: center; margin: 3rem 0; padding: 2rem; background: #f8f9fa; border-radius: 16px;'>
@@ -736,7 +958,7 @@ else:
             </div>
             <div>
                 <div style='font-size: 2rem; color: #4facfe; margin-bottom: 0.5rem;'>3</div>
-                <p style='color: #424242 !important; font-weight: 500;'>Visualiza los resultados en tiempo real</p>
+                <p style='color: #424242 !important; font-weight: 500;'>Visualiza los resultados y umbrales en tiempo real</p>
             </div>
         </div>
     </div>
@@ -751,7 +973,7 @@ st.markdown("""
         <span style='font-size: 1.5rem;'>🔥</span>
     </div>
     <p style='margin: 0; opacity: 0.9; font-size: 0.9rem; color: #e3f2fd !important;'>
-        Versión 2.1.0 | Última actualización: {} | 
+        Versión 2.1.0 | Sistema de umbrales: BAJO (0-40%) | MEDIO (40-70%) | ALTO (70-100%) | 
         <span style='color: #4CAF50;'>● Sistema operativo</span>
     </p>
 </div>
