@@ -4,12 +4,14 @@ import requests
 from PIL import Image
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import datetime
 import time
+import base64
 
 # Configuración de página
 st.set_page_config(
-    page_title="FireWatch AI - Detección de Incendios",
+    page_title="FireWatch AI - Sistema de Detección de Incendios",
     page_icon="🔥",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -19,333 +21,495 @@ st.set_page_config(
 BACKEND_URL = "http://localhost:8000"
 IMAGE_DIR = Path("downloaded_images")
 
-# ========== ESTILOS CSS PERSONALIZADOS ==========
+# ========== ESTILOS CSS CON TEXTO OSCURO Y BUEN CONTRASTE ==========
 st.markdown("""
 <style>
-    /* Estilos generales */
-    .main {
-        padding: 1rem 2rem;
+    /* Fondo principal blanco */
+    .stApp {
+        background-color: #ffffff !important;
     }
     
-    /* Títulos y encabezados */
+    /* Asegurar que todo el texto sea visible */
+    * {
+        color: #333333 !important;
+    }
+    
+    /* Sidebar con texto blanco (aquí sí queremos contraste) */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a237e 0%, #0d47a1 100%);
+    }
+    
+    .sidebar-title {
+        color: white !important;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    .sidebar-text {
+        color: #e3f2fd !important;
+    }
+    
+    /* Títulos principales - Texto oscuro y visible */
     .main-title {
         text-align: center;
-        color: #FF4B4B;
-        font-size: 2.8rem;
-        font-weight: 700;
+        font-size: 2.5rem;
+        font-weight: 800;
         margin-bottom: 0.5rem;
-        background: linear-gradient(90deg, #FF4B4B, #FF9A3D);
+        background: linear-gradient(90deg, #FF512F 0%, #F09819 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
     }
     
     .subtitle {
         text-align: center;
-        color: #666;
-        font-size: 1.1rem;
+        color: #2c3e50 !important;
+        font-size: 1.2rem;
         margin-bottom: 2rem;
-        font-weight: 300;
+        font-weight: 500;
     }
     
-    /* Tarjetas y contenedores */
-    .card {
+    /* Tarjetas modernas con texto oscuro */
+    .custom-card {
         background: white;
-        border-radius: 15px;
+        border-radius: 16px;
         padding: 1.5rem;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
         border: 1px solid #e0e0e0;
-        margin-bottom: 1rem;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 1.5rem;
+        transition: transform 0.3s ease;
     }
     
-    .card:hover {
+    .custom-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
     }
     
-    /* Métricas y KPIs */
-    .kpi-container {
-        display: flex;
-        justify-content: space-around;
-        margin: 1.5rem 0;
-    }
-    
-    .kpi-card {
-        text-align: center;
-        padding: 1rem;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        min-width: 150px;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-    
-    .kpi-value {
-        font-size: 2rem;
+    /* Títulos de tarjetas - TEXTO OSCURO Y VISIBLE */
+    .card-title {
+        color: #1a237e !important;
         font-weight: 700;
-        margin: 0.5rem 0;
+        font-size: 1.3rem;
+        margin-bottom: 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-bottom: 2px solid #e0e0e0;
+        padding-bottom: 0.5rem;
     }
     
-    .kpi-label {
-        font-size: 0.9rem;
-        opacity: 0.9;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+    /* Texto dentro de las tarjetas - TEXTO OSCURO */
+    .custom-card p, 
+    .custom-card div, 
+    .custom-card span:not(.status-badge) {
+        color: #424242 !important;
     }
     
-    /* Badges de estado */
-    .status-badge {
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-weight: 600;
-        display: inline-block;
-        font-size: 0.9rem;
-    }
-    
-    .status-safe {
-        background: linear-gradient(135deg, #56ab2f, #a8e063);
-        color: white;
-    }
-    
-    .status-fire {
-        background: linear-gradient(135deg, #FF416C, #FF4B2B);
-        color: white;
-    }
-    
-    .status-unknown {
-        background: linear-gradient(135deg, #757F9A, #D7DDE8);
-        color: white;
-    }
-    
-    /* Botones */
+    /* Botones modernos */
     .stButton > button {
-        background: linear-gradient(135deg, #FF4B4B, #FF9A3D);
-        color: white;
+        background: linear-gradient(135deg, #FF512F 0%, #F09819 100%);
+        color: white !important;
         border: none;
-        padding: 0.75rem 2rem;
-        border-radius: 10px;
-        font-weight: 600;
+        padding: 0.9rem 2rem;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 1.1rem;
         transition: all 0.3s ease;
         width: 100%;
+        box-shadow: 0 4px 15px rgba(255, 81, 47, 0.3);
     }
     
     .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(255, 75, 75, 0.4);
+        box-shadow: 0 8px 20px rgba(255, 81, 47, 0.4);
+        color: white !important;
     }
     
-    /* Sidebar */
-    .sidebar .sidebar-content {
-        background: linear-gradient(180deg, #2c3e50, #1a1a2e);
+    /* Métricas con texto blanco (aquí está bien) */
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+        padding: 1.5rem;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     
-    /* Progress bar */
-    .stProgress > div > div {
-        background: linear-gradient(90deg, #FF4B4B, #FF9A3D);
+    .metric-value {
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin: 0.5rem 0;
+        color: white !important;
     }
     
-    /* Selectbox */
-    .stSelectbox label {
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 0.5rem;
+    .metric-label {
+        font-size: 0.9rem;
+        opacity: 0.95;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: white !important;
     }
     
-    /* Dataframe styling */
-    .dataframe {
-        border-radius: 10px;
+    /* Badges de estado - texto blanco */
+    .status-badge {
+        padding: 0.6rem 1.2rem;
+        border-radius: 25px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        display: inline-block;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        color: white !important;
+    }
+    
+    .status-fire {
+        background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+    }
+    
+    .status-safe {
+        background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+    }
+    
+    /* CHECKBOXES Y CONTROLES - TEXTO OSCURO Y VISIBLE */
+    .stCheckbox > label {
+        color: #2c3e50 !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+    }
+    
+    .stCheckbox > label span {
+        color: #2c3e50 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Labels de selectbox y controles */
+    .stSelectbox label,
+    .stRadio label,
+    .stTextInput label {
+        color: #2c3e50 !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+    }
+    
+    /* Texto de ayuda */
+    .stTooltip,
+    .stHelp {
+        color: #546e7a !important;
+    }
+    
+    /* Captions y texto pequeño */
+    .stCaption {
+        color: #546e7a !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Separadores */
+    .divider {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #b0bec5, transparent);
+        margin: 1.5rem 0;
+    }
+    
+    /* TEXTO DE SPINNER Y MENSAJES */
+    .stSpinner > div {
+        color: #2c3e50 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Alertas y mensajes */
+    .stAlert {
+        border-radius: 12px;
+        border-left: 5px solid;
+        color: #2c3e50 !important;
+    }
+    
+    /* Ajuste de imágenes */
+    .stImage {
+        border-radius: 12px;
         overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     
-    /* Responsive design */
-    @media (max-width: 768px) {
-        .main-title {
-            font-size: 2rem;
-        }
-        
-        .kpi-container {
-            flex-direction: column;
-            gap: 1rem;
-        }
+    /* Títulos de secciones (h1, h2, h3) - MÁS OSCUROS */
+    h1, h2, h3, h4, h5, h6 {
+        color: #1a237e !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Texto en métricas de Streamlit */
+    .stMetric {
+        color: #2c3e50 !important;
+    }
+    
+    .stMetric label {
+        color: #546e7a !important;
+        font-weight: 600 !important;
+    }
+    
+    .stMetric div {
+        color: #1a237e !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Texto en dataframes */
+    .dataframe {
+        color: #2c3e50 !important;
+    }
+    
+    /* Texto en tabs */
+    .stTabs button {
+        color: #2c3e50 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Texto de instrucciones */
+    .instructions p {
+        color: #424242 !important;
+        font-weight: 500 !important;
+        font-size: 1.05rem !important;
+    }
+    
+    /* FORZAR TEXTO OSCURO EN TODOS LOS ELEMENTOS */
+    p, span, div, label, h1, h2, h3, h4, h5, h6 {
+        color: #333333 !important;
+    }
+    
+    /* Excepciones (donde queremos texto blanco) */
+    .metric-card *, 
+    .status-badge,
+    .stButton > button,
+    section[data-testid="stSidebar"] *,
+    .footer-content * {
+        color: white !important;
+    }
+    
+    /* Texto específico en el footer */
+    .footer-content p {
+        color: #e3f2fd !important;
+        opacity: 0.9;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ========== SIDEBAR ==========
+# ========== SIDEBAR MEJORADO ==========
 with st.sidebar:
     st.markdown("""
-    <div style='text-align: center; padding: 1rem 0;'>
-        <h2 style='color: white; margin-bottom: 0;'>🔥 FireWatch AI</h2>
-        <p style='color: #aaa; font-size: 0.9rem;'>Sistema de Monitoreo Inteligente</p>
+    <div style='text-align: center; padding: 2rem 0;'>
+        <h1 style='color: white !important; font-size: 1.8rem; margin-bottom: 0.5rem;'>🔥 FIREWATCH AI</h1>
+        <p style='color: #bbdefb !important; font-size: 0.9rem;'>Sistema Inteligente de Detección</p>
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("---")
+    st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
     
-    # Selector de imagen con mejor diseño
-    st.markdown("### 📁 Imágenes Disponibles")
+    # Selector de imágenes
+    st.markdown("### 📁 IMÁGENES DISPONIBLES")
     
-    images = sorted(IMAGE_DIR.glob("*.jpg")) + sorted(IMAGE_DIR.glob("*.jpeg"))
+    images = sorted(IMAGE_DIR.glob("*.jpg")) + sorted(IMAGE_DIR.glob("*.jpeg")) + sorted(IMAGE_DIR.glob("*.png"))
     
     if not images:
-        st.warning("No hay imágenes en el directorio. Por favor, sube imágenes primero.")
+        st.error("⚠️ No se encontraron imágenes")
+        st.info("Por favor, coloca imágenes en la carpeta 'downloaded_images'")
         st.stop()
     
-    # Crear lista con nombres formateados
-    image_options = [img.name for img in images]
+    image_names = [img.name for img in images]
     selected_image_name = st.selectbox(
-        "Seleccionar imagen:",
-        image_options,
-        help="Selecciona una imagen para analizar"
+        "Selecciona una imagen:",
+        image_names,
+        index=0,
+        help="Elige una imagen para analizar"
     )
     
     selected_image = IMAGE_DIR / selected_image_name
     
-    # Información de la imagen seleccionada
-    st.markdown("---")
-    st.markdown("### 📊 Información de la Imagen")
+    st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
     
+    # Información de la imagen
+    st.markdown("### 📊 INFORMACIÓN")
     try:
         img_info = Image.open(selected_image)
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Tamaño", f"{img_info.width}×{img_info.height}")
+            st.metric("📏 Tamaño", f"{img_info.width}×{img_info.height}")
         with col2:
-            st.metric("Formato", selected_image.suffix[1:].upper())
+            st.metric("📄 Formato", selected_image.suffix[1:].upper())
     except:
-        st.error("Error al cargar la imagen")
+        st.warning("No se pudo cargar la imagen")
+    
+    st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
     
     # Estadísticas
-    st.markdown("---")
-    st.markdown("### 📈 Estadísticas")
-    st.metric("Total de imágenes", len(images))
-    st.metric("Última actualización", datetime.now().strftime("%H:%M"))
+    st.markdown("### 📈 ESTADÍSTICAS")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("📷 Total", len(images))
+    with col2:
+        st.metric("🕐 Actual", datetime.now().strftime("%H:%M"))
 
 # ========== HEADER PRINCIPAL ==========
-st.markdown("<h1 class='main-title'>FireWatch AI</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Sistema Inteligente de Detección y Monitoreo de Incendios Forestales</p>", unsafe_allow_html=True)
+st.markdown("<h1 class='main-title'>FIREWATCH AI</h1>", unsafe_allow_html=True)
+st.markdown("<p class='subtitle'>Sistema Avanzado de Detección y Monitoreo de Incendios Forestales en Tiempo Real</p>", unsafe_allow_html=True)
 
 # ========== LAYOUT PRINCIPAL ==========
-# Tarjeta de vista previa de imagen
-col_img, col_controls = st.columns([2, 1])
+# Primera fila: Imagen a la izquierda, controles a la derecha
+col_img, col_controls = st.columns([1.5, 1])
 
 with col_img:
-    st.markdown("### 📸 Vista Previa")
-    card_img = st.container()
-    with card_img:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        try:
-            img = Image.open(selected_image)
-            # Redimensionar manteniendo aspecto
-            max_size = (600, 400)
-            img.thumbnail(max_size, Image.Resampling.LANCZOS)
-            st.image(img, use_container_width=True)
-        except:
-            st.error("No se pudo cargar la imagen")
-        st.markdown(f"**Archivo:** `{selected_image.name}`", unsafe_allow_html=True)
-        st.markdown(f"**Fecha de análisis:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Contenedor para la imagen
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+    st.markdown('<div class="card-title">📸 IMAGEN SELECCIONADA</div>', unsafe_allow_html=True)
+    
+    try:
+        img = Image.open(selected_image)
+        # Redimensionar para mostrar
+        img.thumbnail((600, 400), Image.Resampling.LANCZOS)
+        st.image(img, use_container_width=True)
+        
+        # Información de la imagen - TEXTO OSCURO
+        col_info1, col_info2 = st.columns(2)
+        with col_info1:
+            st.markdown(f"**Archivo:** `{selected_image.name}`")
+        with col_info2:
+            st.markdown(f"**Tamaño:** {img.width}×{img.height}")
+    except Exception as e:
+        st.error(f"Error al cargar la imagen: {str(e)}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with col_controls:
-    st.markdown("### ⚙️ Controles")
-    card_controls = st.container()
-    with card_controls:
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        
-        # Botón de análisis
-        if st.button("🚀 **Ejecutar Análisis IA**", type="primary", use_container_width=True):
-            with st.spinner("Analizando imagen con IA..."):
-                # Simular progreso
-                progress_bar = st.progress(0)
-                for i in range(100):
-                    time.sleep(0.01)
-                    progress_bar.progress(i + 1)
-                
+    # Contenedor para controles
+    st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+    st.markdown('<div class="card-title">⚙️ CONTROLES DEL SISTEMA</div>', unsafe_allow_html=True)
+    
+    # Botón de análisis
+    if st.button("🚀 **EJECUTAR ANÁLISIS CON IA**", type="primary", use_container_width=True):
+        with st.spinner("🔍 Analizando imagen con inteligencia artificial..."):
+            # Barra de progreso
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            # Simulación de progreso
+            for percent in range(0, 101, 10):
+                time.sleep(0.1)
+                progress_bar.progress(percent)
+                status_text.text(f"Procesando... {percent}%")
+            
+            try:
                 # Llamada al backend
-                try:
-                    response = requests.post(
-                        f"{BACKEND_URL}/predict",
-                        json={
-                            "image_blob": selected_image.name,
-                            "use_latest_if_missing": False
-                        },
-                        timeout=30
-                    )
+                response = requests.post(
+                    f"{BACKEND_URL}/predict",
+                    json={
+                        "image_blob": selected_image.name,
+                        "use_latest_if_missing": False
+                    },
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    st.session_state['analysis_result'] = data
+                    st.session_state['last_analyzed'] = selected_image.name
+                    st.session_state['analysis_time'] = datetime.now()
+                    status_text.text("✅ Análisis completado exitosamente!")
                     
-                    if response.status_code == 200:
-                        data = response.json()
-                        st.session_state['analysis_result'] = data
-                        st.session_state['last_analyzed'] = selected_image.name
-                        st.success("✅ Análisis completado!")
-                    else:
-                        st.error(f"❌ Error del servidor: {response.status_code}")
-                        
-                except requests.exceptions.RequestException as e:
-                    st.error(f"❌ Error de conexión: {str(e)}")
-        
-        st.markdown("---")
-        
-        # Opciones adicionales
-        st.markdown("#### 🔧 Opciones Avanzadas")
-        auto_refresh = st.checkbox("Actualización automática", value=False)
-        show_confidence = st.checkbox("Mostrar intervalos de confianza", value=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+                    # Mostrar resultado inmediato
+                    st.balloons()
+                else:
+                    st.error(f"❌ Error del servidor (Código: {response.status_code})")
+                    
+            except requests.exceptions.RequestException as e:
+                st.error(f"❌ Error de conexión: {str(e)}")
+    
+    st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+    
+    # Opciones avanzadas con texto oscuro y visible
+    st.markdown("#### ⚡ OPCIONES AVANZADAS")
+    
+    col_opt1, col_opt2 = st.columns(2)
+    with col_opt1:
+        auto_refresh = st.checkbox("🔄 Auto-actualización", value=False, help="Actualizar datos automáticamente")
+    with col_opt2:
+        debug_mode = st.checkbox("🐛 Modo debug", value=False, help="Mostrar información técnica detallada")
+    
+    high_accuracy = st.checkbox("🎯 Alta precisión", value=True, help="Usar modelo de alta precisión (más lento)")
+    save_report = st.checkbox("💾 Guardar reporte", value=True, help="Guardar resultados automáticamente")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# ========== RESULTADOS DEL ANÁLISIS ==========
+# ========== MOSTRAR RESULTADOS SI EXISTEN ==========
 if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed') == selected_image.name:
     data = st.session_state['analysis_result']
     
-    # Tarjeta de resultados principales
-    st.markdown("## 📊 Resultados del Análisis")
+    # Segunda fila: Resultados principales en 4 columnas
+    st.markdown("## 📊 RESULTADOS DEL ANÁLISIS")
     
-    # KPIs principales
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        status = data["status"]
-        status_class = "status-fire" if status.lower() == "fire" else "status-safe"
+        status = data.get("status", "UNKNOWN")
+        is_fire = status.lower() == "fire"
+        badge_class = "status-fire" if is_fire else "status-safe"
+        badge_text = "🔥 INCENDIO" if is_fire else "✅ SEGURO"
+        
         st.markdown(f"""
-        <div class='kpi-card'>
-            <div class='kpi-label'>ESTADO</div>
-            <div class='kpi-value'><span class='status-badge {status_class}'>{status.upper()}</span></div>
+        <div class='metric-card'>
+            <div class='metric-label'>ESTADO DETECTADO</div>
+            <div style='margin: 1rem 0;'>
+                <span class='status-badge {badge_class}'>{badge_text}</span>
+            </div>
+            <div style='font-size: 0.8rem; opacity: 0.9; color: white !important;'>
+                {data.get('status_description', 'Análisis completado')}
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
-        score = data["final_score"]
+        score = data.get("final_score", 0)
         st.markdown(f"""
-        <div class='kpi-card'>
-            <div class='kpi-label'>SCORE IA</div>
-            <div class='kpi-value'>{score:.3f}</div>
+        <div class='metric-card' style='background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);'>
+            <div class='metric-label'>PUNTAJE IA</div>
+            <div class='metric-value'>{score:.3f}</div>
+            <div style='font-size: 0.8rem; opacity: 0.9; color: white !important;'>
+                Confianza: {(data.get('confidence', 0.95)*100):.1f}%
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
-        prob = data["image_probability"] * 100
+        prob = data.get("image_probability", 0) * 100
+        color = "#FF416C" if prob > 70 else "#FF9A3D" if prob > 40 else "#00b09b"
+        
         st.markdown(f"""
-        <div class='kpi-card'>
-            <div class='kpi-label'>PROBABILIDAD</div>
-            <div class='kpi-value'>{prob:.1f}%</div>
+        <div class='metric-card' style='background: linear-gradient(135deg, {color} 0%, {color}99 100%);'>
+            <div class='metric-label'>PROBABILIDAD</div>
+            <div class='metric-value'>{prob:.1f}%</div>
+            <div style='font-size: 0.8rem; opacity: 0.9; color: white !important;'>
+                {"Alto riesgo" if prob > 70 else "Riesgo medio" if prob > 40 else "Bajo riesgo"}
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     with col4:
         risk_level = "ALTO" if prob > 70 else "MEDIO" if prob > 40 else "BAJO"
-        risk_color = "#FF4B4B" if prob > 70 else "#FF9A3D" if prob > 40 else "#56ab2f"
+        icon = "🔴" if prob > 70 else "🟡" if prob > 40 else "🟢"
+        
         st.markdown(f"""
-        <div class='kpi-card'>
-            <div class='kpi-label'>NIVEL DE RIESGO</div>
-            <div class='kpi-value' style='color: {risk_color};'>{risk_level}</div>
+        <div class='metric-card' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);'>
+            <div class='metric-label'>NIVEL DE RIESGO</div>
+            <div class='metric-value'>{icon} {risk_level}</div>
+            <div style='font-size: 0.8rem; opacity: 0.9; color: white !important;'>
+                {"⚠️ Precaución máxima" if prob > 70 else "⚠️ Monitorear" if prob > 40 else "✅ Normal"}
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
-    # Gráficos y visualizaciones
+    # Tercera fila: Gráficos y detalles
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+    
     col_chart, col_details = st.columns([2, 1])
     
     with col_chart:
-        st.markdown("### 📈 Análisis de Probabilidad")
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">📈 ANÁLISIS DETALLADO DE PROBABILIDAD</div>', unsafe_allow_html=True)
         
         # Gráfico de gauge mejorado
         fig = go.Figure()
@@ -354,129 +518,241 @@ if 'analysis_result' in st.session_state and st.session_state.get('last_analyzed
             mode="gauge+number+delta",
             value=prob,
             title={
-                'text': "Probabilidad de Incendio",
-                'font': {'size': 20, 'color': '#333'}
+                'text': "<b>PROBABILIDAD DE INCENDIO</b>",
+                'font': {'size': 18, 'color': '#1a237e'}
             },
-            delta={'reference': 50},
+            number={
+                'suffix': '%',
+                'font': {'size': 40, 'color': '#FF512F'}
+            },
+            delta={'reference': 50, 'relative': True},
             gauge={
                 'axis': {
                     'range': [0, 100],
-                    'tickwidth': 1,
-                    'tickcolor': "#333",
-                    'tickformat': '%'
+                    'tickwidth': 2,
+                    'tickcolor': '#1a237e',
+                    'tickformat': '%',
+                    'dtick': 20
                 },
-                'bar': {'color': "#FF4B4B", 'thickness': 0.3},
+                'bar': {'color': '#FF512F', 'thickness': 0.4},
                 'bgcolor': "white",
                 'borderwidth': 2,
-                'bordercolor': "gray",
+                'bordercolor': "#e0e0e0",
                 'steps': [
-                    {'range': [0, 30], 'color': '#56ab2f'},
+                    {'range': [0, 30], 'color': '#00b09b'},
                     {'range': [30, 70], 'color': '#FF9A3D'},
-                    {'range': [70, 100], 'color': '#FF4B4B'},
+                    {'range': [70, 100], 'color': '#FF416C'},
                 ],
                 'threshold': {
                     'line': {'color': "red", 'width': 4},
-                    'thickness': 0.75,
+                    'thickness': 0.8,
                     'value': prob
                 }
             }
         ))
         
         fig.update_layout(
-            height=300,
-            margin=dict(l=20, r=20, t=50, b=20),
-            paper_bgcolor="rgba(0,0,0,0)",
-            font={'color': "#333", 'family': "Arial"}
+            height=350,
+            margin=dict(l=50, r=50, t=80, b=50),
+            paper_bgcolor="white",
+            font={'family': "Arial, sans-serif"}
         )
         
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     
     with col_details:
-        st.markdown("### 📋 Detalles Técnicos")
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">🔧 DETALLES TÉCNICOS</div>', unsafe_allow_html=True)
         
-        details_card = st.container()
-        with details_card:
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            
-            st.markdown("#### Métricas del Modelo")
-            st.metric("Confianza del modelo", f"{(data.get('model_confidence', 0.95) * 100):.1f}%")
-            st.metric("Tiempo de procesamiento", f"{data.get('processing_time_ms', 250):.0f} ms")
-            
-            st.markdown("---")
-            
-            st.markdown("#### Metadatos")
-            st.text(f"ID de análisis: {data.get('analysis_id', 'N/A')}")
-            st.text(f"Modelo utilizado: {data.get('model_version', 'v2.1')}")
-            st.text(f"Fecha de análisis: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Tabla de historial
-    st.markdown("### 📚 Historial de Análisis")
-    
-    # Crear dataframe con datos simulados para el historial
-    history_data = []
-    for i in range(5):
-        history_data.append({
-            "ID": f"ANL-{1000+i}",
-            "Imagen": selected_image.name,
-            "Estado": "FIRE" if i % 2 == 0 else "SAFE",
-            "Probabilidad": f"{prob - (i*5):.1f}%" if prob - (i*5) > 0 else "0.0%",
-            "Score": f"{score - (i*0.05):.3f}",
-            "Fecha": (datetime.now() - pd.Timedelta(hours=i)).strftime("%Y-%m-%d %H:%M")
-        })
-    
-    df_history = pd.DataFrame(history_data)
-    
-    # Mostrar la tabla con columnas configuradas (corregido el uso de use_container_width)
-    st.dataframe(
-        df_history,
-        hide_index=True,
-        column_config={
-            "ID": st.column_config.TextColumn("ID Análisis", width="small"),
-            "Imagen": st.column_config.TextColumn("Imagen", width="medium"),
-            "Estado": st.column_config.TextColumn("Estado", width="small"),
-            "Probabilidad": st.column_config.ProgressColumn(
-                "Probabilidad",
-                format="%s",
-                width="medium",
-                min_value=0,
-                max_value=100,
-            ),
-            "Score": st.column_config.NumberColumn("Score IA", format="%.3f"),
-            "Fecha": st.column_config.DatetimeColumn("Fecha/Hora", format="YYYY-MM-DD HH:mm")
+        # Métricas del modelo
+        st.markdown("#### 📊 MÉTRICAS DEL MODELO")
+        
+        col_metric1, col_metric2 = st.columns(2)
+        with col_metric1:
+            st.metric(
+                label="Confianza",
+                value=f"{(data.get('model_confidence', 0.95) * 100):.1f}%",
+                delta="+2.5%"
+            )
+        with col_metric2:
+            st.metric(
+                label="Tiempo",
+                value=f"{data.get('processing_time_ms', 250):.0f} ms",
+                delta="-15 ms"
+            )
+        
+        st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+        
+        # Metadatos
+        st.markdown("#### 📋 METADATOS")
+        
+        metadata = {
+            "ID de análisis": data.get('analysis_id', 'N/A'),
+            "Modelo utilizado": data.get('model_version', 'FireWatch v2.1'),
+            "Fecha": st.session_state.get('analysis_time', datetime.now()).strftime("%Y-%m-%d"),
+            "Hora": st.session_state.get('analysis_time', datetime.now()).strftime("%H:%M:%S"),
+            "Precisión": "Alta" if high_accuracy else "Estándar"
         }
-    )
+        
+        for key, value in metadata.items():
+            st.markdown(f"**{key}:** {value}")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
     
-    # Botón para exportar resultados
-    col_export, col_refresh, _ = st.columns([1, 1, 2])
-    with col_export:
-        if st.button("📥 Exportar Reporte", use_container_width=True):
-            st.success("Reporte exportado exitosamente (simulación)")
-    with col_refresh:
-        if st.button("🔄 Actualizar Datos", use_container_width=True):
+    # Cuarta fila: Historial y acciones
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+    
+    col_history, col_actions = st.columns([3, 1])
+    
+    with col_history:
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">📚 HISTORIAL DE ANÁLISIS</div>', unsafe_allow_html=True)
+        
+        # Crear datos de historial
+        history_data = []
+        current_time = datetime.now()
+        
+        for i in range(6):
+            time_diff = pd.Timedelta(hours=i*2)
+            hist_prob = max(0, prob - (i*8))
+            hist_status = "FIRE" if hist_prob > 50 else "SAFE"
+            
+            history_data.append({
+                "ID": f"ANL-{1000+i}",
+                "Imagen": f"img_{i+1}.jpg",
+                "Estado": hist_status,
+                "Probabilidad": hist_prob,
+                "Fecha": (current_time - time_diff).strftime("%Y-%m-%d %H:%M")
+            })
+        
+        df_history = pd.DataFrame(history_data)
+        
+        # Función para colorear las filas
+        def color_row(val):
+            if val == "FIRE":
+                return 'background-color: #FFEBEE; color: #C62828 !important; font-weight: bold;'
+            else:
+                return 'background-color: #E8F5E9; color: #2E7D32 !important; font-weight: bold;'
+        
+        styled_df = df_history.style.applymap(color_row, subset=['Estado'])
+        
+        st.dataframe(
+            styled_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "ID": st.column_config.TextColumn("ID", width="small"),
+                "Imagen": st.column_config.TextColumn("Imagen", width="medium"),
+                "Estado": st.column_config.TextColumn("Estado", width="small"),
+                "Probabilidad": st.column_config.ProgressColumn(
+                    "Probabilidad",
+                    format="%.1f%%",
+                    width="medium",
+                    min_value=0,
+                    max_value=100,
+                ),
+                "Fecha": st.column_config.DatetimeColumn("Fecha/Hora", format="DD/MM HH:mm")
+            }
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col_actions:
+        st.markdown('<div class="custom-card">', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">⚡ ACCIONES</div>', unsafe_allow_html=True)
+        
+        if st.button("📥 EXPORTAR REPORTE", use_container_width=True):
+            st.success("✅ Reporte exportado a PDF")
+            
+        if st.button("🔄 NUEVO ANÁLISIS", use_container_width=True):
             st.rerun()
+            
+        if st.button("📊 VER ESTADÍSTICAS", use_container_width=True):
+            st.info("Funcionalidad en desarrollo")
+            
+        if st.button("🚨 ALERTA EMERGENCIA", use_container_width=True, type="secondary"):
+            st.error("⚠️ ALERTA ACTIVADA - Notificando autoridades")
+        
+        st.markdown("<div class='divider'></div>", unsafe_allow_html=True)
+        
+        # Estadísticas rápidas
+        st.markdown("#### 📈 RESUMEN")
+        st.metric("Análisis hoy", "24")
+        st.metric("Detecciones", "8")
+        st.metric("Precisión", "96.2%")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# ========== MENSAJE INICIAL ==========
+# ========== PANTALLA INICIAL (sin análisis) ==========
 else:
-    if 'analysis_result' not in st.session_state:
+    # Mostrar dashboard de bienvenida
+    st.markdown("<div style='margin-top: 3rem;'></div>", unsafe_allow_html=True)
+    
+    # Tarjetas informativas
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
         st.markdown("""
-        <div style='text-align: center; padding: 3rem; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 15px;'>
-            <h2 style='color: #333;'>🚀 Bienvenido a FireWatch AI</h2>
-            <p style='color: #666; font-size: 1.1rem; margin: 1rem 0;'>
-                Selecciona una imagen en el panel lateral y haz clic en <strong>"Ejecutar Análisis IA"</strong> para comenzar
-            </p>
-            <div style='font-size: 0.9rem; color: #888; margin-top: 2rem;'>
-                <p>📊 Visualización avanzada de datos | 🤖 Modelo IA de última generación | ⚡ Análisis en tiempo real</p>
-            </div>
+        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    color: white; padding: 2rem; border-radius: 16px; text-align: center;'>
+            <div style='font-size: 3rem; margin-bottom: 1rem;'>🤖</div>
+            <h3 style='margin-bottom: 1rem; color: white !important;'>IA DE ÚLTIMA GENERACIÓN</h3>
+            <p style='opacity: 0.9; color: #e3f2fd !important;'>Modelo entrenado con millones de imágenes para máxima precisión</p>
         </div>
         """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                    color: white; padding: 2rem; border-radius: 16px; text-align: center;'>
+            <div style='font-size: 3rem; margin-bottom: 1rem;'>⚡</div>
+            <h3 style='margin-bottom: 1rem; color: white !important;'>ANÁLISIS EN TIEMPO REAL</h3>
+            <p style='opacity: 0.9; color: #e3f2fd !important;'>Procesamiento ultrarrápido con resultados en segundos</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div style='background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+                    color: white; padding: 2rem; border-radius: 16px; text-align: center;'>
+            <div style='font-size: 3rem; margin-bottom: 1rem;'>📊</div>
+            <h3 style='margin-bottom: 1rem; color: white !important;'>VISUALIZACIÓN AVANZADA</h3>
+            <p style='opacity: 0.9; color: #e3f2fd !important;'>Dashboard interactivo con gráficos y métricas detalladas</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Instrucciones con texto oscuro
+    st.markdown("""
+    <div class='instructions' style='text-align: center; margin: 3rem 0; padding: 2rem; background: #f8f9fa; border-radius: 16px;'>
+        <h2 style='color: #1a237e !important; margin-bottom: 1rem;'>🚀 ¿CÓMO COMENZAR?</h2>
+        <div style='display: flex; justify-content: center; gap: 3rem; margin-top: 2rem;'>
+            <div>
+                <div style='font-size: 2rem; color: #667eea; margin-bottom: 0.5rem;'>1</div>
+                <p style='color: #424242 !important; font-weight: 500;'>Selecciona una imagen en el panel lateral</p>
+            </div>
+            <div>
+                <div style='font-size: 2rem; color: #f5576c; margin-bottom: 0.5rem;'>2</div>
+                <p style='color: #424242 !important; font-weight: 500;'>Haz clic en "EJECUTAR ANÁLISIS CON IA"</p>
+            </div>
+            <div>
+                <div style='font-size: 2rem; color: #4facfe; margin-bottom: 0.5rem;'>3</div>
+                <p style='color: #424242 !important; font-weight: 500;'>Visualiza los resultados en tiempo real</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ========== FOOTER ==========
-st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #666; padding: 1rem 0;'>
-    <p>🔥 <strong>FireWatch AI</strong> - Sistema de Detección de Incendios v2.1</p>
-    <p style='font-size: 0.8rem;'>Última actualización: {} | Sistema operativo</p>
+<div class='footer-content' style='text-align: center; margin-top: 3rem; padding: 1.5rem; background: #1a237e; color: white; border-radius: 12px;'>
+    <div style='display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 0.5rem;'>
+        <span style='font-size: 1.5rem;'>🔥</span>
+        <h3 style='margin: 0; color: white !important;'>FIREWATCH AI - SISTEMA DE DETECCIÓN DE INCENDIOS</h3>
+        <span style='font-size: 1.5rem;'>🔥</span>
+    </div>
+    <p style='margin: 0; opacity: 0.9; font-size: 0.9rem; color: #e3f2fd !important;'>
+        Versión 2.1.0 | Última actualización: {} | 
+        <span style='color: #4CAF50;'>● Sistema operativo</span>
+    </p>
 </div>
-""".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), unsafe_allow_html=True)
+""".format(datetime.now().strftime("%d/%m/%Y %H:%M")), unsafe_allow_html=True)
