@@ -1,61 +1,48 @@
-# 🔥 Sistema IoT para Detección de Incendios con Inteligencia Artificial
+# 🔥 FireWatch AI – Backend IoT e Inteligencia Artificial
 
-Proyecto Final del curso **Internet de las Cosas (IoT)**  
-Universidad Nacional de San Agustín – UNSA  
-
-Docente: **P. Maldonado Quispe (pmaldonado@unsa.edu.pe)**  
-Fecha: **Diciembre 2025**
+Proyecto Final – Internet de las Cosas (IoT)  
+Universidad Nacional de San Agustín de Arequipa (UNSA)  
+Diciembre 2025  
 
 ---
 
-## 📌 Descripción General
+## 📌 Descripción de este repositorio
 
-Este proyecto consiste en el diseño e implementación de un **sistema IoT híbrido para la detección temprana de incendios**, integrando eventos generados por sensores físicos, captura de información multimedia desde un dispositivo móvil y procesamiento inteligente mediante modelos de **Deep Learning**.
+Este repositorio implementa la **capa central de procesamiento inteligente del sistema FireWatch AI**, encargada de la recepción de eventos IoT, el procesamiento de información multimedia y la ejecución de inferencia mediante modelos de Inteligencia Artificial.
 
-El sistema busca **mejorar la precisión de detección** y **reducir falsos positivos**, combinando múltiples fuentes de información y presentando los resultados en un **dashboard web en tiempo casi real**.
+El módulo desarrollado integra mensajería IoT, servicios backend y visualización web, permitiendo la **detección temprana de incendios** y la clasificación automática de eventos según su nivel de riesgo.
 
----
-
-## 🎯 Objetivo General
-
-Construir un sistema IoT capaz de identificar un posible foco de fuego mediante la combinación de:
-
-- Sensores físicos del entorno (temperatura, luz, entre otros)
-- Captura de imágenes desde un smartphone
-- Procesamiento inteligente en un backend centralizado
-- Clasificación automática del evento como:
-  - **NORMAL**
-  - **RIESGO**
-  - **CONFIRMADO**
+Este repositorio corresponde **únicamente** a la capa de Backend IoT + IA del proyecto general.
 
 ---
 
-## 🔄 Flujo General del Sistema
+## 🎯 Rol dentro del proyecto FireWatch AI
 
-El sistema sigue el siguiente flujo de funcionamiento:
+Este módulo se encarga específicamente de:
 
-Sensores IoT / Smartphone  
-↓  
-MQTT (HiveMQ – mensajería asíncrona)  
-↓  
-Backend IoT (FastAPI + Inteligencia Artificial)  
-↓  
-Análisis con Deep Learning  
-↓  
-Dashboard Web (visualización y supervisión)
+- Recibir eventos desde el sistema IoT mediante MQTT  
+- Descargar imágenes asociadas a los eventos detectados  
+- Ejecutar inferencia con un modelo de Deep Learning  
+- Clasificar el evento como:
+  - NORMAL
+  - RIESGO
+  - CONFIRMADO  
+- Exponer resultados mediante endpoints REST  
+- Proveer información procesada al dashboard web  
 
-Este diseño desacoplado permite separar la comunicación IoT en tiempo real de la visualización de resultados, facilitando escalabilidad y mantenimiento.
+Otros componentes del sistema (firmware IoT, aplicación móvil, broker MQTT e infraestructura) se desarrollan y documentan en repositorios independientes.
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## 🧠 Tecnologías utilizadas
 
-La arquitectura implementada se basa en un modelo cliente-servidor orientado a eventos, donde:
-
-- Los **dispositivos IoT** generan eventos cuando se superan umbrales configurables.
-- La comunicación se realiza mediante **MQTT**, optimizado para IoT.
-- El **backend** procesa los eventos, descarga imágenes desde almacenamiento en la nube y ejecuta inferencia con un modelo de IA.
-- El **dashboard web** consume los resultados a través de endpoints REST para su visualización.
+- Python 3.10+
+- FastAPI
+- MQTT (HiveMQ)
+- PyTorch
+- Streamlit
+- Docker
+- Google Cloud Storage
 
 ---
 
@@ -85,22 +72,124 @@ MODELOIA-IOT/
 └── README.md
 ```
 
-🔌 Endpoints REST Utilizados
+---
 
-El sistema expone endpoints REST que permiten verificar el estado del backend y consultar los resultados del modelo de inteligencia artificial, los cuales son utilizados tanto por el flujo IoT como por el dashboard web.
+## 🔌 Endpoints REST implementados
 
-GET /health
+### GET /health
 
-Este endpoint permite verificar el estado del backend IoT y confirmar que el servicio se encuentra operativo y disponible para recibir eventos.
+Permite verificar el estado del backend IoT.
 
-POST /predict
+Respuesta esperada:
+```json
+{
+  "status": "ok"
+}
+```
 
-Este endpoint permite ejecutar la inferencia del modelo de inteligencia artificial sobre una imagen capturada por el sistema.
 
-Request (JSON):
+---
+
+
+### POST /predict
+
+Ejecuta la inferencia del modelo de Inteligencia Artificial sobre una imagen almacenada.
+
+Request:
 ```json
 {
   "image_blob": "test.jpeg",
   "use_latest_if_missing": false
 }
 ```
+
+Response:
+```json
+{
+  "status": "FIRE",
+  "final_score": 0.80,
+  "image_probability": 1.0,
+  "confidence": 0.95
+}
+```
+Este endpoint es utilizado tanto por el flujo IoT como por el dashboard web.
+
+---
+
+
+
+## ▶️ Ejecución del proyecto en entorno local
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/usuario/firewatch-ai-backend.git
+cd MODELOIA-IOT
+```
+
+### 2. Crear y activar entorno virtual
+Crear el entorno virtual:
+```bash
+python -m venv venv
+```
+Activar el entorno virtual:
+
+#### Windows
+```bash
+venv\Scripts\activate
+```
+#### Linux / macOS
+```bash
+source venv/bin/activate
+```
+
+
+
+
+### 3. Instalar dependencias
+```bash
+pip install -r requirements.txt
+```
+
+
+### 4. Configurar variables de entorno
+Crear el archivo .env en la raíz del proyecto con el siguiente contenido:
+
+```bash
+MQTT_BROKER_URL=broker.hivemq.com
+MQTT_TOPIC=pic
+GCS_BUCKET_NAME=firewatch-images
+GOOGLE_APPLICATION_CREDENTIALS=secrets/service_account.json
+
+```
+
+
+### 5. Ejecutar el backend IoT
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+El backend quedará disponible en:
+```bash
+http://localhost:8000
+```
+
+
+### 6. Ejecutar el dashboard web
+En una nueva terminal (con el entorno virtual activo):
+```bash
+streamlit run dashboard.py
+
+```
+El dashboard estará disponible en:
+
+```bash
+http://localhost:8501
+```
+
+
+
+
+
+
+
