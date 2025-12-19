@@ -1,11 +1,10 @@
-from __future__ import annotations
-
-import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+import logging
 
-from .settings import settings
-from .inference import InferenceService
+from app.settings import settings
+from app.container import svc
+from app.mqtt_listener import start_mqtt_thread
 
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO))
 logger = logging.getLogger("iot-fire-ai")
@@ -15,9 +14,12 @@ app = FastAPI(
     version="1.0.0",
 )
 
-from app.mqtt_listener import start_mqtt_thread
+@app.on_event("startup")
+def startup_event():
+    start_mqtt_thread()
+    logger.info("🚀 MQTT listener iniciado")
 
-svc = InferenceService()
+
 
 
 class PredictRequest(BaseModel):

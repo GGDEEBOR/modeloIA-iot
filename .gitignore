@@ -1,0 +1,12 @@
+# Entorno virtual Python
+venv/
+.env
+
+secrets/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
